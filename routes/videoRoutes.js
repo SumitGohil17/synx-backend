@@ -1,5 +1,6 @@
 import express from 'express';
-import upload from '../middleware/upload.js';
+// import upload from '../middleware/upload.js';
+import multer from 'multer';
 import { validateVideoUpload, validateVideoUpdate } from '../middleware/validation.js';
 import { 
     videoController,
@@ -10,6 +11,8 @@ import {
 } from '../controller/videoController.js';
 
 const Router = express.Router();
+
+const upload = multer({ dest: "uploads/" });
 
 
 Router.post('/upload', 
