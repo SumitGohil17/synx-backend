@@ -281,10 +281,98 @@ const deleteVideo = async (req, res) => {
     }
 };
 
+// REST fallback for incrementing views
+const incrementVideoViews = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const video = await Video.findByIdAndUpdate(
+            id,
+            { $inc: { views: 1 } },
+            { new: true }
+        );
+        if (!video) {
+            return res.status(404).json({ success: false, message: 'Video not found' });
+        }
+        res.status(200).json({ success: true, views: video.views });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error incrementing views', error: error.message });
+    }
+};
+
+
+import crypto from 'crypto';
+
+// Simple in-memory cache for demo (replace with Redis in production)
+const recentViewsCache = new Map();
+
+// Helper: get unique user key (IP + UA + email if available)
+function getUserKey(req) {
+    const ip = req.headers['x-forwarded-for'] || req.connection?.remoteAddress || req.ip || '';
+    const ua = req.headers['user-agent'] || '';
+    // Accept email from req.body or req.user (if using auth middleware)
+    let email = '';
+    if (req.body && req.body.email) {
+        email = req.body.email;
+    } else if (req.user && req.user.email) {
+        email = req.user.email;
+    }
+    // Hash for privacy
+    return crypto.createHash('sha256').update(ip + ua + email).digest('hex');
+}
+
+// Helper: check if recently viewed
+function recentlyViewed(videoId, userKey, cooldownMs = 60 * 60 * 1000) {
+    const key = `${videoId}:${userKey}`;
+    const entry = recentViewsCache.get(key);
+    if (entry && (Date.now() - entry < cooldownMs)) {
+        return true;
+    }
+    return false;
+}
+
+// Helper: cache recent view
+function cacheRecentView(videoId, userKey) {
+    const key = `${videoId}:${userKey}`;
+    recentViewsCache.set(key, Date.now());
+}
+
+// API: Reliable view counting (YouTube-style)
+const reliableViewCount = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Watch time sent from frontend (seconds)
+        const { watchTime } = req.body;
+        if (!watchTime || watchTime < 2) {
+            return res.status(400).json({ success: false, message: 'Watch time too short for valid view.' });
+        }
+        const userKey = getUserKey(req);
+        // Cooldown: 1 hour
+        if (recentlyViewed(id, userKey, 60 * 60 * 1000)) {
+            return res.status(200).json({ success: false, message: 'View already counted recently for this user.' });
+        }
+        // TODO: Add bot detection logic here (rate limiting, suspicious UA, etc.)
+        // If passed all checks, increment views
+        const video = await Video.findByIdAndUpdate(
+            id,
+            { $inc: { views: 1 } },
+            { new: true }
+        );
+        if (!video) {
+            return res.status(404).json({ success: false, message: 'Video not found' });
+        }
+        cacheRecentView(id, userKey);
+        res.status(200).json({ success: true, views: video.views });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error incrementing views', error: error.message });
+    }
+};
+
 export {
     videoController,
     getAllVideos,
     getVideoById,
     updateVideo,
-    deleteVideo
+    deleteVideo,
+    incrementVideoViews,
+    reliableViewCount
 };

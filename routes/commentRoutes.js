@@ -1,0 +1,9 @@
+import express from 'express';
+import { addComment, getComments } from '../controller/commentController.js';
+
+const router = express.Router();
+
+router.post('/add', addComment);
+router.get('/:videoId', getComments);
+
+export default router;

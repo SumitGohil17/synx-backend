@@ -9,6 +9,7 @@ import {
     updateVideo,
     deleteVideo
 } from '../controller/videoController.js';
+import { incrementVideoViews } from '../controller/videoController.js';
 
 const Router = express.Router();
 
@@ -51,5 +52,12 @@ Router.get('/:id', getVideoById);
 Router.put('/:id', validateVideoUpdate, updateVideo);
 
 Router.delete('/:id', deleteVideo);
+
+// Increment views (REST fallback)
+Router.post('/:id/views', incrementVideoViews);
+
+// YouTube-style reliable view counting
+import { reliableViewCount } from '../controller/videoController.js';
+Router.post('/:id/reliable-view', reliableViewCount);
 
 export default Router;
