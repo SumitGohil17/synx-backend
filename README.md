@@ -1,6 +1,6 @@
 # Synx Backend - Video Platform API
 
-A comprehensive Node.js/Express backend for a YouTube-style video platform with advanced features including video upload, processing, real-time view counting, comments, likes, and user subscriptions.
+A comprehensive Node.js/Express backend for a video platform with advanced features including video upload, processing, real-time view counting, comments, likes, and user subscriptions.
 
 ## 🚀 Features
 
