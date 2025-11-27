@@ -1,5 +1,5 @@
 import express from 'express';
-import { likeVideo, unlikeVideo } from '../controller/likeController.js';
+import { likeVideo, unlikeVideo } from '../controller/likeControllerPostgres.js';
 
 const router = express.Router();
 

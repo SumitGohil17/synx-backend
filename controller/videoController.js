@@ -342,7 +342,7 @@ const reliableViewCount = async (req, res) => {
         const { id } = req.params;
         // Watch time sent from frontend (seconds)
         const { watchTime } = req.body;
-        if (!watchTime || watchTime < 2) {
+        if (!watchTime || watchTime < 1) {
             return res.status(400).json({ success: false, message: 'Watch time too short for valid view.' });
         }
         const userKey = getUserKey(req);

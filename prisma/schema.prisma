@@ -1,0 +1,212 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  supabaseId      String?   @unique
+  email           String    @unique
+  username        String
+  password        String
+  
+  subscribers     User[]    @relation("subscribers")
+  subscriptions   User[]    @relation("subscribers")
+  
+  comments        Comment[]
+  videoLikes      Like[]
+  videos          Video[]   @relation("VideoAuthor")
+  
+  hostedRooms     VideoRoom[]       @relation("RoomHost")
+  roomParticipations RoomParticipant[] @relation("RoomParticipants")
+  roomMessages    RoomMessage[]     @relation("RoomMessages")
+  
+  watchHistory    WatchHistory[]    @relation("UserWatchHistory")
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Video {
+  id              String    @id @default(cuid())
+  title           String    @db.VarChar(100)
+  url             String
+  description     String    @db.VarChar(1000)
+  thumbnail       String?
+  tags            String[]  @default([])
+  category        String
+  author          String
+  
+  authorId        String
+  authorUser      User      @relation("VideoAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  
+  duration        Int       @default(0)
+  views           Int       @default(0)
+  likes           Int       @default(0)
+  fileSize        Int       @default(0)
+  mimeType        String    @default("video/mp4")
+  uploadedAt      DateTime  @default(now())
+  
+  comments        Comment[]
+  videoLikes      Like[]
+  videoRooms      VideoRoom[]   @relation("VideoRooms")
+  watchHistory    WatchHistory[] @relation("VideoWatchHistory")
+  videoViews      VideoView[]   @relation("VideoViews")
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([author])
+  @@index([authorId])
+  @@index([category])
+  @@index([createdAt])
+  @@index([views])
+}
+
+model Comment {
+  id              String    @id @default(cuid())
+  text            String    @db.VarChar(1000)
+  
+  videoId         String
+  video           Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([videoId])
+  @@index([userId])
+}
+
+model Like {
+  id              String    @id @default(cuid())
+  
+  videoId         String
+  video           Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime  @default(now())
+  
+  @@unique([videoId, userId])
+  @@index([videoId])
+  @@index([userId])
+}
+
+model VideoRoom {
+  id              String    @id @default(cuid())
+  videoId         String
+  video           Video     @relation("VideoRooms", fields: [videoId], references: [id], onDelete: Cascade)
+  
+  hostId          String
+  host            User      @relation("RoomHost", fields: [hostId], references: [id], onDelete: Cascade)
+  
+  roomCode        String    @unique
+  name            String?
+  isActive        Boolean   @default(true)
+  
+  messages        RoomMessage[]
+  participants    RoomParticipant[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([videoId])
+  @@index([hostId])
+  @@index([roomCode])
+}
+
+model RoomParticipant {
+  id              String    @id @default(cuid())
+  
+  roomId          String
+  room            VideoRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User      @relation("RoomParticipants", fields: [userId], references: [id], onDelete: Cascade)
+  
+  socketId        String?
+  isOnline        Boolean   @default(true)
+  lastSeen        DateTime  @default(now())
+  
+  joinedAt        DateTime  @default(now())
+  
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+}
+
+model RoomMessage {
+  id              String    @id @default(cuid())
+  
+  roomId          String
+  room            VideoRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User      @relation("RoomMessages", fields: [userId], references: [id], onDelete: Cascade)
+  
+  message         String    @db.Text
+  messageType     String    @default("text") 
+  
+  timestamp       Int?    
+  targetUserId    String?   
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([roomId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model WatchHistory {
+  id              String    @id @default(cuid())
+  
+  userId          String
+  user            User      @relation("UserWatchHistory", fields: [userId], references: [id], onDelete: Cascade)
+  
+  videoId         String
+  video           Video     @relation("VideoWatchHistory", fields: [videoId], references: [id], onDelete: Cascade)
+  
+  watchedAt       DateTime  @default(now())
+  watchDuration   Int       @default(0) 
+  lastPosition    Int       @default(0) 
+  completed       Boolean   @default(false) 
+  
+  @@unique([userId, videoId])
+  @@index([userId])
+  @@index([videoId])
+  @@index([watchedAt])
+}
+
+model VideoView {
+  id              String    @id @default(cuid())
+  
+  videoId         String
+  video           Video     @relation("VideoViews", fields: [videoId], references: [id], onDelete: Cascade)
+ 
+  userId          String?
+ 
+  fingerprint     String
+  
+ 
+  watchDuration   Int       @default(0)  
+  ipAddress       String?
+  userAgent       String?
+  
+
+  viewedAt        DateTime  @default(now())
+  
+  @@unique([videoId, fingerprint])
+  @@index([videoId])
+  @@index([fingerprint])
+  @@index([viewedAt])
+  @@index([userId])
+}

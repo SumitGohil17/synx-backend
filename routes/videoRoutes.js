@@ -1,5 +1,4 @@
 import express from 'express';
-// import upload from '../middleware/upload.js';
 import multer from 'multer';
 import { validateVideoUpload, validateVideoUpdate } from '../middleware/validation.js';
 import { 
@@ -7,9 +6,10 @@ import {
     getAllVideos,
     getVideoById,
     updateVideo,
-    deleteVideo
-} from '../controller/videoController.js';
-import { incrementVideoViews } from '../controller/videoController.js';
+    deleteVideo,
+    incrementVideoViews,
+    reliableViewCount
+} from '../controller/videoControllerPostgres.js';
 
 const Router = express.Router();
 
@@ -57,7 +57,6 @@ Router.delete('/:id', deleteVideo);
 Router.post('/:id/views', incrementVideoViews);
 
 // YouTube-style reliable view counting
-import { reliableViewCount } from '../controller/videoController.js';
 Router.post('/:id/reliable-view', reliableViewCount);
 
 export default Router;

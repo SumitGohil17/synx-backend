@@ -22,7 +22,10 @@
   "homepage": "https://github.com/SumitGohil17/synx-backend#readme",
   "dependencies": {
     "@vercel/blob": "^1.1.1",
-    "aws-sdk": "^2.1551.0",
+    "@prisma/client": "^5.8.0",
+    "@aws-sdk/client-s3": "^3.670.0",
+    "@aws-sdk/lib-storage": "^3.670.0",
+    "bcryptjs": "^2.4.3",
     "cloudinary": "^2.7.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
@@ -37,7 +40,12 @@
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "nodemon": "^3.1.10",
+    "pg": "^8.11.3",
     "sharp": "^0.34.3",
+    "uuid": "^9.0.1",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.8.0"
   }
 }
