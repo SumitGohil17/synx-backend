@@ -234,7 +234,7 @@ const videoController = async (req, res) => {
         // fs.rmSync(outputDir, { recursive: true, force: true });
 
         // const masterPlaylistKey = `hls/${videoId}/master.m3u8`;
-        // const masterUrl = `https://s3.${process.env.AWS_REGION}.amazonaws.com/${bucketName}/${masterPlaylistKey}`;
+        // const inputPath = `https://s3.${process.env.AWS_REGION}.amazonaws.com/${bucketName}/${masterPlaylistKey}`;
 
         const video = await prisma.video.create({
             data: {
@@ -261,7 +261,7 @@ const videoController = async (req, res) => {
             success: true,
             message: 'Video uploaded and transcoded successfully',
             video,
-            hlsUrl: masterUrl,
+            hlsUrl: inputPath,
             hasAudio,
             qualities: ['360p', '480p', '720p', '1080p']
         });

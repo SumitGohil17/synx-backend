@@ -2,22 +2,34 @@ import prisma from '../connection/prismaConnection.js';
 
 export const likeVideo = async (req, res) => {
     try {
-        const { videoId, userId } = req.body;
+        const { videoId, supabaseId } = req.body;
+
+        const user = await prisma.user.findUnique({ where: { supabaseId } });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found. Please sync user first.' });
+        }
+
+        const video = await prisma.video.findUnique({ where: { id: videoId } });
+        if (!video) {
+            return res.status(404).json({ success: false, message: 'Video not found.' });
+        }
         
         const existing = await prisma.like.findUnique({
             where: {
                 videoId_userId: {
                     videoId,
-                    userId
+                    userId: user.id
                 }
             }
         });
+
+
         
         if (existing) {
             return res.status(200).json({ success: false, message: 'Already liked.' });
         }
         
-        await prisma.like.create({ data: { videoId, userId } });
+        await prisma.like.create({ data: { videoId, userId: user.id } });
         await prisma.video.update({
             where: { id: videoId },
             data: { likes: { increment: 1 } }
@@ -31,13 +43,18 @@ export const likeVideo = async (req, res) => {
 
 export const unlikeVideo = async (req, res) => {
     try {
-        const { videoId, userId } = req.body;
+        const { videoId, supabaseId } = req.body;
+
+        const user = await prisma.user.findUnique({ where: { supabaseId } });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found. Please sync user first.' });
+        }
         
         const like = await prisma.like.findUnique({
             where: {
                 videoId_userId: {
                     videoId,
-                    userId
+                    userId: user.id
                 }
             }
         });
@@ -50,7 +67,7 @@ export const unlikeVideo = async (req, res) => {
             where: {
                 videoId_userId: {
                     videoId,
-                    userId
+                    userId: user.id
                 }
             }
         });

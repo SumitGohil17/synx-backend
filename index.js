@@ -11,6 +11,8 @@ import likeRoutes from './routes/likeRoutes.js';
 import videoRoomRoutes from './routes/videoRoomRoutes.js';
 import watchHistoryRoutes from './routes/watchHistoryRoutes.js';
 import viewRoutes from './routes/viewRoutes.js';
+import shortsRoutes from './routes/shortsRoutes.js'
+import subscribeRoutes from './routes/subscribeRoutes.js';
 
 dotenv.config();
 
@@ -46,6 +48,8 @@ app.use('/api/likes', likeRoutes);
 app.use('/api/rooms', videoRoomRoutes);
 app.use('/api/watch-history', watchHistoryRoutes);
 app.use('/api/views', viewRoutes);
+app.use('/api/shorts', shortsRoutes); 
+app.use('/api/subscribes', subscribeRoutes);
 
 // Health check endpoint
 app.get('/health', async (req, res) => {

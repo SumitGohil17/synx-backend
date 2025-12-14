@@ -2,14 +2,26 @@ import prisma from '../connection/prismaConnection.js';
 
 export const addComment = async (req, res) => {
     try {
-        const { videoId, userId, text } = req.body;
+        const { videoId, supabaseId, text } = req.body;
         
-        if (!text || !videoId || !userId) {
+        if (!text || !videoId || !supabaseId) {
             return res.status(400).json({ success: false, message: 'Missing fields.' });
         }
         
+        const user = await prisma.user.findUnique({ where: { supabaseId } });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found. Please sync user first.' });
+        }
+
+        const video = await prisma.video.findUnique({ where: { id: videoId } });
+        if (!video) {
+            return res.status(404).json({ success: false, message: 'Video not found.' });
+        }
+
+
+
         const comment = await prisma.comment.create({
-            data: { videoId, userId, text },
+            data: { videoId, userId: user.id, text },
             include: { user: { select: { username: true, email: true } } }
         });
         
