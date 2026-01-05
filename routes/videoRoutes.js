@@ -8,7 +8,8 @@ import {
     updateVideo,
     deleteVideo,
     incrementVideoViews,
-    reliableViewCount
+    reliableViewCount,
+    analyzeVideo
 } from '../controller/videoControllerPostgres.js';
 
 const Router = express.Router();
@@ -21,6 +22,8 @@ Router.post('/upload',
     validateVideoUpload,
     videoController
 );
+
+Router.post('/analyze', upload.single('video'), analyzeVideo);
 
 // Router.post('/upload-any', 
 //     upload.any(),

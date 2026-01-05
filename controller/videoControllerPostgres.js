@@ -1,6 +1,5 @@
 import prisma from '../connection/prismaConnection.js';
-// import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-// import { spawn } from "child_process";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
@@ -13,13 +12,71 @@ const execAsync = promisify(exec);
 
 dotenv.config();
 
-// const s3Client = new S3Client({
-//     region: process.env.AWS_REGION,
-//     credentials: {
-//         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-//         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-//     }
-// });
+// Gemini AI Configuration
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Extract frame from video using FFmpeg
+async function extractVideoFrame(videoPath) {
+    const outputPath = videoPath + '_frame.jpg';
+    try {
+        await execAsync(`ffmpeg -i "${videoPath}" -ss 00:00:02 -frames:v 1 -q:v 2 "${outputPath}" -y`);
+        return outputPath;
+    } catch (error) {
+        console.log('Error extracting frame:', error.message);
+        return null;
+    }
+}
+
+// Analyze video content with Gemini
+async function analyzeVideoWithGemini(videoPath) {
+    try {
+        const framePath = await extractVideoFrame(videoPath);
+        if (!framePath || !fs.existsSync(framePath)) {
+            console.log('Could not extract frame for analysis');
+            return null;
+        }
+
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const imageData = fs.readFileSync(framePath);
+        const base64Image = imageData.toString('base64');
+
+        const prompt = `Analyze this video frame and provide the following in JSON format only (no markdown, no code blocks):
+{
+  "title": "A catchy title for this video (max 80 chars)",
+  "description": "A detailed description of what's happening (max 500 chars)",
+  "category": "One of: Entertainment, Education, Gaming, Music, Sports, News, Technology, Comedy, Vlogs, Other",
+  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
+}
+Provide ONLY the JSON, nothing else.`;
+
+        const result = await model.generateContent([
+            prompt,
+            {
+                inlineData: {
+                    mimeType: 'image/jpeg',
+                    data: base64Image
+                }
+            }
+        ]);
+
+        const response = result.response.text();
+        
+        // Clean up frame file
+        if (fs.existsSync(framePath)) {
+            fs.unlinkSync(framePath);
+        }
+
+        // Parse JSON from response
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]);
+        }
+        return null;
+    } catch (error) {
+        console.error('Gemini analysis error:', error.message);
+        return null;
+    }
+}
 
 const bucketName = process.env.S3_BUCKET_NAME;
 
@@ -66,21 +123,21 @@ async function hasAudioStream(videoPath) {
 }
 
 const videoController = async (req, res) => {
-    const { title, description, thumbnail, tags, category, author, duration, authorId } = req.body;
-    const inputPath = req.file.path;
+    let { title, description, thumbnail, tags, category, author, duration, authorId } = req.body;
+    const inputPath = req.file?.path;
 
     if (!inputPath) {
         return res.status(400).json({ error: 'Video file is required.' });
     }
 
-    if (!title || !description) {
-        return res.status(400).json({ error: 'Title and description are required.' });
-    }
-
     try {
         let parsedTags = [];
         if (tags) {
-            parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+            try {
+                parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+            } catch {
+                parsedTags = tags.split(',').map(t => t.trim());
+            }
         }
 
         let finalAuthorId = authorId;
@@ -259,11 +316,8 @@ const videoController = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Video uploaded and transcoded successfully',
-            video,
-            hlsUrl: inputPath,
-            hasAudio,
-            qualities: ['360p', '480p', '720p', '1080p']
+            message: 'Video uploaded successfully',
+            video
         });
     } catch (error) {
         console.error('Video upload error:', error);
@@ -475,6 +529,52 @@ const reliableViewCount = async (req, res) => {
     }
 };
 
+const analyzeVideo = async (req, res) => {
+    const videoPath = req.file?.path;
+
+    if (!videoPath) {
+        return res.status(400).json({ success: false, message: 'Video file is required' });
+    }
+
+    try {
+        console.log('Analyzing video with Gemini...');
+        const aiData = await analyzeVideoWithGemini(videoPath);
+
+        // Clean up uploaded file after analysis
+        if (fs.existsSync(videoPath)) {
+            fs.unlinkSync(videoPath);
+        }
+
+        if (!aiData) {
+            return res.status(200).json({
+                success: true,
+                data: {
+                    title: '',
+                    description: '',
+                    category: 'Other',
+                    tags: []
+                }
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                title: aiData.title || '',
+                description: aiData.description || '',
+                category: aiData.category || 'Other',
+                tags: aiData.tags || []
+            }
+        });
+    } catch (error) {
+        // Clean up file on error
+        if (fs.existsSync(videoPath)) {
+            fs.unlinkSync(videoPath);
+        }
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 export {
     videoController,
     getAllVideos,
@@ -482,5 +582,6 @@ export {
     updateVideo,
     deleteVideo,
     incrementVideoViews,
-    reliableViewCount
+    reliableViewCount,
+    analyzeVideo
 };

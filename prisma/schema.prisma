@@ -114,11 +114,16 @@ model Comment {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([videoId])
   @@index([userId])
+  @@index([parentId])
 }
 
 model Like {
