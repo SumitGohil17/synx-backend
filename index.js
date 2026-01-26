@@ -21,6 +21,7 @@ import { Server } from 'socket.io';
 import prisma from './connection/prismaConnection.js';
 import { setupVideoRoomSocket } from './sockets/videoRoomSocket.js';
 import { countViewSocket } from './controller/viewController.js';
+import { checkRedisHealth } from './utils/cacheUtils.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -55,17 +56,19 @@ app.use('/api/subscribes', subscribeRoutes);
 app.get('/health', async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
+    const redisHealth = await checkRedisHealth();
+    
     res.status(200).json({
       status: 'OK',
       message: 'Server is running',
       database: 'PostgreSQL Connected',
+      redis: redisHealth,
       timestamp: new Date()
     });
   } catch (error) {
     res.status(500).json({
       status: 'ERROR',
-      message: 'Database connection failed',
-      database: 'PostgreSQL Disconnected',
+      message: 'Health check failed',
       error: error.message
     });
   }

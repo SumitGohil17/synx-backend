@@ -5,9 +5,13 @@ import path from "path";
 import dotenv from "dotenv";
 dotenv.config();
 import { v4 as uuidv4 } from "uuid";
-import crypto from 'crypto';
 import { promisify } from 'util';
 import { exec, spawn } from 'child_process';
+import { 
+    getCache, setCache, getCacheOrFetch,
+    invalidateShortsCache,
+    CACHE_KEYS, CACHE_TTL 
+} from '../utils/cacheUtils.js';
 
 const execAsync = promisify(exec);
 
@@ -39,11 +43,9 @@ const bucketName = process.env.S3_BUCKET_NAME;
 
 export const createShort = async (req, res) => {
     const inputPath = req.file.path;
-
     const { title, description, authorName, authorId, tags, category } = req.body;
 
     try {
-
         let parsedTags = [];
         if (tags) {
             try {
@@ -53,42 +55,30 @@ export const createShort = async (req, res) => {
             }
         }
 
-        let finalAuthorId = authorId;
-        if (authorId) {
-            let user = await prisma.user.findUnique({ where: { supabaseId: authorId } });
-            if (user) {
-                finalAuthorId = user.id;
-            }
+        // Get user with cache
+        const userCacheKey = `${CACHE_KEYS.USER_BY_SUPABASE}${authorId}`;
+        let user = await getCache(userCacheKey);
+        
+        if (!user) {
+            user = await prisma.user.findUnique({ where: { supabaseId: authorId } });
+            if (user) await setCache(userCacheKey, user, CACHE_TTL.USER);
         }
 
-        if (!finalAuthorId) {
-            return res.status(400).json({ error: 'Author ID or email is required.' });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found. Please sync user first.' });
         }
 
-        const userExists = await prisma.user.findUnique({
-            where: { id: finalAuthorId }
-        });
-
-        if (!userExists) {
-            return res.status(404).json({ error: 'Author user not found. Please provide a valid authorId or email.' });
-        }
-
-        console.log('Processing video upload...');
+        console.log('Processing short video upload...');
         const videoId = uuidv4();
         const outputDir = path.join("uploads", `hls_${videoId}`);
         fs.mkdirSync(outputDir, { recursive: true });
 
-        // Normalize paths for FFmpeg
         const normalizedInputPath = normalizePath(inputPath);
         const normalizedOutputDir = normalizePath(outputDir);
-
         const hasAudio = await hasAudioStream(inputPath);
-        console.log(`Video has audio: ${hasAudio}`);
 
         let ffmpegArgs;
-
         if (hasAudio) {
-            console.log('Starting FFmpeg transcoding with audio...');
             ffmpegArgs = [
                 "-i", normalizedInputPath,
                 "-filter_complex",
@@ -114,7 +104,6 @@ export const createShort = async (req, res) => {
                 `${normalizedOutputDir}/v%v/index.m3u8`
             ];
         } else {
-            console.log('Starting FFmpeg transcoding without audio...');
             ffmpegArgs = [
                 "-i", normalizedInputPath,
                 "-filter_complex",
@@ -137,36 +126,13 @@ export const createShort = async (req, res) => {
             ];
         }
 
-        // Run ffmpeg
         await new Promise((resolve, reject) => {
             const ffmpeg = spawn("ffmpeg", ffmpegArgs);
-
             let errorOutput = '';
-
-            ffmpeg.stderr.on("data", (data) => {
-                const output = data.toString();
-                console.log(output);
-                errorOutput += output;
-            });
-
-            ffmpeg.on("close", (code) => {
-                if (code === 0) {
-                    console.log('FFmpeg transcoding completed successfully');
-                    resolve();
-                } else {
-                    console.error('FFmpeg failed with code', code);
-                    console.error('Error output:', errorOutput);
-                    reject(new Error(`FFmpeg failed with code ${code}`));
-                }
-            });
-
-            ffmpeg.on("error", (error) => {
-                console.error('FFmpeg process error:', error);
-                reject(error);
-            });
+            ffmpeg.stderr.on("data", (data) => { errorOutput += data.toString(); });
+            ffmpeg.on("close", (code) => code === 0 ? resolve() : reject(new Error(`FFmpeg failed: ${code}`)));
+            ffmpeg.on("error", reject);
         });
-
-        console.log('Transcoding complete. Uploading to S3...');
 
         const uploadFiles = async (dir, prefix = "") => {
             const files = fs.readdirSync(dir);
@@ -178,91 +144,87 @@ export const createShort = async (req, res) => {
                     await uploadFiles(filePath, path.join(prefix, file));
                 } else {
                     const fileBuffer = fs.readFileSync(filePath);
-                    const contentType = file.endsWith(".m3u8")
-                        ? "application/vnd.apple.mpegurl"
-                        : "video/mp2t";
-
-                    const uploadParams = {
+                    await s3Client.send(new PutObjectCommand({
                         Bucket: bucketName,
                         Key: s3Key,
                         Body: fileBuffer,
-                        ContentType: contentType
-                    };
-
-                    try {
-                        const command = new PutObjectCommand(uploadParams);
-                        await s3Client.send(command);
-                        console.log(`Uploaded ${s3Key}`);
-                    } catch (error) {
-                        console.error(`Failed to upload ${s3Key}:`, error);
-                        throw error;
-                    }
+                        ContentType: file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : "video/mp2t"
+                    }));
                 }
             }
         };
 
         await uploadFiles(outputDir);
 
-        console.log('Cleaning up temporary files...');
         fs.unlinkSync(inputPath);
         fs.rmSync(outputDir, { recursive: true, force: true });
 
         const masterPlaylistKey = `hls/${videoId}/master.m3u8`;
-        const inputPath2 = `https://s3.${process.env.AWS_REGION}.amazonaws.com/${bucketName}/${masterPlaylistKey}`;
+        const videoUrl = `https://s3.${process.env.AWS_REGION}.amazonaws.com/${bucketName}/${masterPlaylistKey}`;
 
-
-        if (!inputPath) {
-            return res.status(400).json({ success: false, message: 'Video file is required' });
-        }
-        if (!title || !authorId) {
-            return res.status(400).json({ success: false, message: 'title, videoUrl, and userId are required' });
-        }
-        const user = await prisma.user.findUnique({ where: { supabaseId: authorId } });
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found. Please sync user first.' });
-        }
-
-        // let parsedTags = [];
-        // if (tags) {
-        //     try {
-        //         parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
-        //         if (!Array.isArray(parsedTags)) parsedTags = [parsedTags];
-        //     } catch {
-        //         parsedTags = tags.split(',').map(t => t.trim());
-        //     }
-        // }
         const short = await prisma.shortsVideo.create({
-            data: { title: title, description: description, url: inputPath2, tags: parsedTags, category: category, author: authorName, authorId: user.id },
+            data: { 
+                title, 
+                description, 
+                url: videoUrl, 
+                tags: parsedTags, 
+                category, 
+                author: authorName, 
+                authorId: user.id 
+            },
             include: { authorUser: { select: { id: true, username: true, email: true } } }
         });
+
+        // Invalidate shorts cache
+        await invalidateShortsCache();
+
         res.status(201).json({ success: true, short });
     } catch (error) {
+        if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
         res.status(500).json({ success: false, message: 'Error creating short', error: error.message });
     }
 };
 
 export const getShorts = async (req, res) => {
     try {
-        const shorts = await prisma.shortsVideo.findMany({
-            include: { authorUser: { select: { id: true, username: true, email: true } } },
-            orderBy: { createdAt: 'desc' }
-        });
-        res.status(200).json({ success: true, shorts });
+        const { data: shorts, fromCache } = await getCacheOrFetch(
+            CACHE_KEYS.SHORTS_LIST,
+            async () => {
+                return await prisma.shortsVideo.findMany({
+                    include: { authorUser: { select: { id: true, username: true, email: true } } },
+                    orderBy: { createdAt: 'desc' }
+                });
+            },
+            CACHE_TTL.SHORTS
+        );
+
+        res.status(200).json({ success: true, shorts, cached: fromCache });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Error fetching shorts', error: error.message });
     }
 };
+
 export const getShortById = async (req, res) => {
     try {
         const { id } = req.params;
-        const short = await prisma.shortsVideo.findUnique({
-            where: { id },
-            include: { authorUser: { select: { id: true, username: true, email: true } } }
-        });
+        const cacheKey = `${CACHE_KEYS.SHORT}${id}`;
+
+        const { data: short, fromCache } = await getCacheOrFetch(
+            cacheKey,
+            async () => {
+                return await prisma.shortsVideo.findUnique({
+                    where: { id },
+                    include: { authorUser: { select: { id: true, username: true, email: true } } }
+                });
+            },
+            CACHE_TTL.SHORTS
+        );
+
         if (!short) {
             return res.status(404).json({ success: false, message: 'Short not found' });
         }
-        res.status(200).json({ success: true, short });
+
+        res.status(200).json({ success: true, short, cached: fromCache });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Error fetching short', error: error.message });
     }
