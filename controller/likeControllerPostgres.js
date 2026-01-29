@@ -25,9 +25,9 @@ export const likeVideo = async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
         
-        const existingLike = await prisma.videoLike.findUnique({
+        const existingLike = await prisma.like.findUnique({
             where: { 
-                uniqueUserVideoLike: { 
+                videoId_userId: { 
                     userId: user.id, 
                     videoId 
                 } 
@@ -38,13 +38,13 @@ export const likeVideo = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Already liked' });
         }
         
-        await prisma.videoLike.create({
+        await prisma.like.create({
             data: { userId: user.id, videoId }
         });
         
         await invalidateLikeCache(videoId, user.id);
         
-        const likeCount = await prisma.videoLike.count({ where: { videoId } });
+        const likeCount = await prisma.like.count({ where: { videoId } });
         
         res.status(201).json({ success: true, message: 'Liked', likeCount });
     } catch (error) {
@@ -72,9 +72,9 @@ export const unlikeVideo = async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
         
-        await prisma.videoLike.delete({
+        await prisma.like.delete({
             where: { 
-                uniqueUserVideoLike: { 
+                videoId_userId: { 
                     userId: user.id, 
                     videoId 
                 } 
@@ -83,7 +83,7 @@ export const unlikeVideo = async (req, res) => {
         
         await invalidateLikeCache(videoId, user.id);
         
-        const likeCount = await prisma.videoLike.count({ where: { videoId } });
+        const likeCount = await prisma.like.count({ where: { videoId } });
         
         res.status(200).json({ success: true, message: 'Unliked', likeCount });
     } catch (error) {
@@ -98,7 +98,7 @@ export const getLikeCount = async (req, res) => {
         
         const { data: count, fromCache } = await getCacheOrFetch(
             cacheKey,
-            async () => await prisma.videoLike.count({ where: { videoId } }),
+            async () => await prisma.like.count({ where: { videoId } }),
             CACHE_TTL.LIKES
         );
         
@@ -124,8 +124,8 @@ export const checkLikeStatus = async (req, res) => {
                 const user = await prisma.user.findUnique({ where: { supabaseId } });
                 if (!user) return { liked: false };
                 
-                const like = await prisma.videoLike.findUnique({
-                    where: { uniqueUserVideoLike: { userId: user.id, videoId } }
+                const like = await prisma.like.findUnique({
+                    where: { videoId_userId: { userId: user.id, videoId } }
                 });
                 return { liked: !!like };
             },

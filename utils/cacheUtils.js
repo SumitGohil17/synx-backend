@@ -2,7 +2,7 @@ import redis from '../connection/redisConnection.js';
 
 export const CACHE_TTL = {
     VIDEO: 600,              
-    VIDEO_LIST: 300,         // 5 minutes
+    VIDEO_LIST: 900,         // 5 minutes
     VIDEO_BY_USER: 300,      // 5 minutes
     COMMENTS: 300,           // 5 minutes
     REPLIES: 300,            // 5 minutes
@@ -12,7 +12,7 @@ export const CACHE_TTL = {
     USER_PROFILE: 600,       // 10 minutes
     SUBSCRIBERS: 300,        // 5 minutes
     SUBSCRIPTION_STATUS: 300,// 5 minutes
-    SHORTS: 300,             // 5 minutes
+    SHORTS: 600,             // 5 minutes
     WATCH_HISTORY: 180,      // 3 minutes
     VIEW_COUNT: 60,          // 1 minute (frequent updates)
     TRENDING: 300,           // 5 minutes
