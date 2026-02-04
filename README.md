@@ -1,366 +1,393 @@
-# Synx Backend - Video Platform API
+# Synx Backend 🎥
 
-A comprehensive Node.js/Express backend for a video platform with advanced features including video upload, processing, real-time view counting, comments, likes, and user subscriptions.
+A scalable, feature-rich video streaming platform backend built with Node.js, Express, PostgreSQL, Redis, and Socket.IO. This backend powers a YouTube-like experience with video uploads, transcoding, real-time features, and advanced caching.
 
-## 🚀 Features
+## 🌟 Features
 
-### Video Management
-- ✅ Video upload with metadata (title, description, category, tags, author)
-- ✅ Multiple video format support (MP4, AVI, MOV, WebM, MKV, FLV)
-- ✅ Video compression and encoding with FFmpeg
-- ✅ Adaptive streaming (HLS) support
-- ✅ Cloud storage integration (Vercel Blob, AWS S3)
-- ✅ Video CRUD operations
+### Core Features
+- **Video Management**: Upload, transcode, and stream videos with HLS adaptive bitrate streaming
+- **Shorts Support**: short-form video uploads and playback
+- **User Authentication**: User registration and OAuth integration with Supabase
+- **Social Features**: Like, comment, subscribe functionality
+- **Watch History**: watch history with continue watching support
+- **Real-time Video Rooms**: Watch videos together with friends using Socket.IO
+- **AI-Powered Video Analysis**: Automatic video content analysis using Google Gemini AI
+- **Advanced Caching**: Redis-based caching for performance optimization
+- **View Counting**: YouTube-style reliable view counting with deduplication
+- **Scalable Architecture**: Designed for horizontal scaling and high performance
 
-### Real-Time Features
-- ✅ Socket.io integration for live view counting
-- ✅ YouTube-style view validation (minimum watch time, cooldown, anti-spam)
-- ✅ Real-time view count broadcasting
+### Technical Highlights
+- **HLS Adaptive Streaming**: Multiple quality levels (360p, 480p, 720p, 1080p)
+- **FFmpeg Video Processing**: Advanced video transcoding and frame extraction
+- **AWS S3 Storage**: Cloud storage for video assets
+- **PostgreSQL Database**: Robust relational database with Prisma ORM
+- **Redis Caching**: Fast in-memory caching for frequently accessed data
+- **Socket.IO**: Real-time bidirectional communication
+- **Docker Support**: Containerized deployment ready
 
-### Social Features
-- ✅ User authentication and management
-- ✅ Comments system (add, view comments per video)
-- ✅ Likes/Unlike functionality
-- ✅ Subscribe/Unsubscribe to users
-- ✅ Supabase OAuth user sync
+## 🏗️ Architecture
 
-### Security & Performance
-- ✅ Helmet.js security headers
-- ✅ CORS enabled
-- ✅ Request validation with express-validator
-- ✅ Rate limiting and anti-spam measures
-- ✅ MongoDB indexing for optimized queries
+### Tech Stack
+- **Runtime**: Node.js 18.x
+- **Framework**: Express.js 5.x
+- **Database**: PostgreSQL 15 with Prisma ORM
+- **Cache**: Redis (Upstash)
+- **Storage**: AWS S3
+- **Video Processing**: FFmpeg
+- **AI**: Google Gemini AI
+- **Real-time**: Socket.IO
+- **Deployment**: Docker, Vercel
 
-## 📋 Prerequisites
+### Project Structure
+```
+synx-backend/
+├── config/                 # Configuration files
+├── connection/            # Database connections
+│   ├── prismaConnection.js    # PostgreSQL (Prisma)
+│   ├── redisConnection.js     # Redis cache
+│   └── dbConnection.js        # MongoDB (legacy)
+├── controller/            # Business logic
+│   ├── videoControllerPostgres.js
+│   ├── shortsController.js
+│   ├── userControllerPostgres.js
+│   ├── commentControllerPostgres.js
+│   ├── likeControllerPostgres.js
+│   ├── subscribeController.js
+│   ├── watchHistoryController.js
+��   ├── viewController.js
+│   └── videoRoomController.js
+├── middleware/            # Express middleware
+│   ├── upload.js              # Multer file upload
+│   └── validation.js          # Input validation
+├── prisma/               # Prisma schema & migrations
+│   ├── schema.prisma
+│   └── migrations/
+├── routes/               # API routes
+│   ├── videoRoutes.js
+│   ├── shortsRoutes.js
+│   ├── userRoutes.js
+│   ├── commentRoutes.js
+│   ├── likeRoutes.js
+│   ├── subscribeRoutes.js
+│   ├── watchHistoryRoutes.js
+│   ├── viewRoutes.js
+│   └── videoRoomRoutes.js
+├── sockets/              # Socket.IO handlers
+│   └── videoRoomSocket.js
+├── utils/                # Utility functions
+│   └── cacheUtils.js          # Redis cache helpers
+├── uploads/              # Temporary upload directory
+├── index.js              # Application entry point
+├── package.json
+├── docker-compose.yml
+├── dockerfile
+└── README.md
+```
 
-- Node.js (v18+)
-- MongoDB (local or cloud)
-- FFmpeg (for video processing)
-- Docker (for containerized deployment)
-- AWS Account (for S3 storage)
-- Vercel Account (for Vercel Blob storage)
+## 🚀 Quick Start
 
-## 🛠️ Installation
+### Prerequisites
+- Node.js 18.x or higher
+- PostgreSQL 15
+- Redis
+- FFmpeg
+- AWS S3 account
+- Google Gemini API key (for AI features)
 
-### 1. Clone the repository
+### Installation
+
+1. **Clone the repository**
 ```bash
 git clone https://github.com/SumitGohil17/synx-backend.git
 cd synx-backend
 ```
 
-### 2. Install dependencies
+2. **Install dependencies**
 ```bash
 npm install
 ```
 
-### 3. Install FFmpeg
-**Windows:**
+3. **Set up environment variables**
 ```bash
-choco install ffmpeg
+cp .env.example .env
 ```
 
-**macOS:**
-```bash
-brew install ffmpeg
-```
-
-**Linux:**
-```bash
-sudo apt-get install ffmpeg
-```
-
-### 4. Environment Configuration
-
-Create a `.env` file in the root directory:
-
+Edit `.env` with your configuration:
 ```env
 # Server
 PORT=5000
 NODE_ENV=development
 
-# MongoDB
-MONGODB_URI=mongodb://localhost:27017/synx_backend
-# Or MongoDB Atlas:
-# MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/synx_backend
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/synx_backend
 
+# Redis
+REDIS_HOST=your-redis-host
+REDIS_PORT=6379
+REDIS_PASSWORD=your-redis-password
 
-# AWS S3 Configuration 
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+# AWS S3
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_REGION=us-east-1
 S3_BUCKET_NAME=your-bucket-name
 
-# Cloudinary 
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+# Google Gemini AI
+GEMINI_API_KEY=your-gemini-api-key
 ```
 
-## ⚙️ AWS S3 Configuration
-
-### Step 1: Create an S3 Bucket
-1. Log in to [AWS Console](https://console.aws.amazon.com/)
-2. Navigate to S3 service
-3. Click "Create bucket"
-4. Choose a unique bucket name (e.g., `synx-video-storage`)
-5. Select your preferred region
-6. Uncheck "Block all public access" if you want public video access
-7. Click "Create bucket"
-
-### Step 2: Configure Bucket Permissions
-Add the following CORS configuration to your bucket:
-
-```json
-[
-  {
-    "AllowedHeaders": ["*"],
-    "AllowedMethods": ["GET", "PUT", "POST", "DELETE"],
-    "AllowedOrigins": ["*"],
-    "ExposeHeaders": ["ETag"]
-  }
-]
-```
-
-### Step 3: Create IAM User
-1. Navigate to IAM service
-2. Click "Users" → "Add user"
-3. Choose a username (e.g., `synx-backend-user`)
-4. Select "Programmatic access"
-5. Attach policy: `AmazonS3FullAccess` (or create custom policy)
-6. Save the **Access Key ID** and **Secret Access Key**
-
-### Step 4: Add AWS Credentials to .env
-```env
-AWS_ACCESS_KEY_ID=AKIA...
-AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG...
-AWS_REGION=us-east-1
-S3_BUCKET_NAME=synx-video-storage
-```
-
-### Custom IAM Policy (Recommended)
-For better security, create a custom policy with minimal permissions:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:PutObject",
-        "s3:GetObject",
-        "s3:DeleteObject",
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::synx-video-storage/*",
-        "arn:aws:s3:::synx-video-storage"
-      ]
-    }
-  ]
-}
-```
-
-## 🐳 Docker Setup
-
-### Build Docker Image
+4. **Run database migrations**
 ```bash
-docker build -t synx-backend .
+npx prisma generate
+npx prisma migrate deploy
 ```
 
-### Run Container
+5. **Start the server**
 ```bash
-docker run -p 5000:5000 --env-file .env synx-backend
-```
-
-### Docker Compose
-```bash
-docker-compose up -d
-```
-
-## 🚀 Running the Application
-
-### Development Mode
-```bash
+# Development
 npm run dev
-```
 
-### Production Mode
-```bash
+# Production
 npm start
 ```
 
-Server will run on `http://localhost:5000`
+The server will start at `http://localhost:5000`
 
-## 📡 API Endpoints
+### 🐳 Docker Deployment
 
-### Video APIs
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/videos/upload` | Upload a video with metadata |
-| GET | `/api/videos/allvideo` | Get all videos |
-| GET | `/api/videos/:id` | Get video by ID |
-| PUT | `/api/videos/:id` | Update video metadata |
-| DELETE | `/api/videos/:id` | Delete video |
-| POST | `/api/videos/:id/views` | Increment views (legacy) |
-| POST | `/api/videos/:id/reliable-view` | YouTube-style view counting |
-
-### User APIs
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/users/sync` | Sync user from Supabase OAuth |
-| POST | `/api/users/subscribe` | Subscribe to a user |
-| POST | `/api/users/unsubscribe` | Unsubscribe from a user |
-
-### Comment APIs
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/comments/add` | Add comment to video |
-| GET | `/api/comments/:videoId` | Get all comments for a video |
-
-### Like APIs
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/likes/like` | Like a video |
-| POST | `/api/likes/unlike` | Unlike a video |
-
-### Health Check
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Server health status |
-
-## 📝 API Usage Examples
-
-### Upload Video
-```bash
-POST /api/videos/upload
-Content-Type: multipart/form-data
-
-Form Data:
-- video: <file>
-- title: "My Awesome Video"
-- description: "This is a great video"
-- category: "education"
-- author: "John Doe"
-- tags: ["tutorial", "nodejs"]
-```
-
-## 🔌 Socket.io Events
-
-### Client → Server
-- `joinVideo(videoId)` - Join a video room
-- `viewVideo(videoId)` - Notify server of video view
-
-### Server → Client
-- `viewsUpdate({ videoId, views })` - Broadcast updated view count
-- `viewsError({ error })` - View counting error
-
-### Frontend Socket.io Example
-```javascript
-import io from 'socket.io-client';
-
-const socket = io('http://localhost:5000');
-
-// Join video room
-socket.emit('joinVideo', videoId);
-
-// Listen for view updates
-socket.on('viewsUpdate', ({ videoId, views }) => {
-  console.log(`Video ${videoId} now has ${views} views`);
-});
-
-// After 30 seconds of watching, count the view
-setTimeout(() => {
-  socket.emit('viewVideo', videoId);
-}, 30000);
-```
-
-## 🗂️ Project Structure
-
-```
-synx_backend/
-├── connection/
-│   └── dbConnnection.js      # MongoDB connection
-├── controller/
-│   ├── videoController.js     # Video CRUD & view logic
-│   ├── userController.js      # User & subscription logic
-│   ├── commentController.js   # Comment logic
-│   └── likeController.js      # Like/unlike logic
-├── middleware/
-│   ├── upload.js              # Multer file upload config
-│   └── validation.js          # Express-validator rules
-├── model/
-│   ├── Video.js               # Video schema
-│   ├── User.js                # User schema
-│   ├── Comment.js             # Comment schema
-│   └── Like.js                # Like schema
-├── routes/
-│   ├── videoRoutes.js         # Video API routes
-│   ├── userRoutes.js          # User API routes
-│   ├── commentRoutes.js       # Comment API routes
-│   └── likeRoutes.js          # Like API routes
-├── uploads/                   # Temporary file storage
-├── .env                       # Environment variables
-├── .env.example               # Example env file
-├── dockerfile                 # Docker configuration
-├── index.js                   # Main app entry point
-├── package.json               # Dependencies
-└── README.md                  # This file
-```
-
-### Deploy to AWS EC2
-1. Launch EC2 instance (Ubuntu 20.04)
-2. Install Node.js and FFmpeg
-3. Clone repository
-4. Set up environment variables
-5. Use PM2 for process management:
-```bash
-npm install -g pm2
-pm2 start index.js --name synx-backend
-pm2 save
-pm2 startup
-```
-
-### Deploy with Docker
+1. **Build and run with Docker Compose**
 ```bash
 docker-compose up -d
 ```
 
-## 📊 MongoDB Schema
+This will start:
+- PostgreSQL database on port 5432
+- Backend API on port 5000
 
-### Video Schema
-```javascript
-{
-  title: String,
-  url: String,
-  description: String,
-  thumbnail: String,
-  tags: [String],
-  category: String,
-  author: String,
-  duration: Number,
-  views: Number,
-  likes: Number,
-  fileSize: Number,
-  mimeType: String,
-  uploadedAt: Date
-}
+2. **Check service health**
+```bash
+curl http://localhost:5000/health
 ```
 
-### User Schema
-```javascript
-{
-  supabaseId: String,
-  email: String,
-  username: String,
-  password: String,
-  subscribers: [ObjectId],
-  subscriptions: [ObjectId],
-  createdAt: Date
-}
+## 📡 API Endpoints
+
+### Videos
+- `POST /api/videos/upload` - Upload a video
+- `GET /api/videos/allvideo` - Get all videos
+- `GET /api/videos/:id` - Get video by ID
+- `PUT /api/videos/:id` - Update video
+- `DELETE /api/videos/:id` - Delete video
+- `POST /api/videos/:id/reliable-view` - Count video view
+- `POST /api/videos/analyze` - Analyze video with AI
+
+### Shorts
+- `POST /api/shorts/createshort` - Create short video
+- `GET /api/shorts/allshorts` - Get all shorts
+- `GET /api/shorts/:id` - Get short by ID
+
+### Users
+- `POST /api/users/sync` - Sync user from Supabase
+
+### Comments
+- `POST /api/comments/add` - Add comment
+- `GET /api/comments/:videoId` - Get video comments
+- `POST /api/comments/reply` - Reply to comment
+- `GET /api/comments/replies/:commentId` - Get comment replies
+
+### Likes
+- `POST /api/likes/like` - Like a video
+- `POST /api/likes/unlike` - Unlike a video
+
+### Subscriptions
+- `POST /api/subscribes/subscribe` - Subscribe to channel
+- `POST /api/subscribes/unsubscribe` - Unsubscribe from channel
+- `GET /api/subscribes/count/:userId` - Get subscriber count
+- `GET /api/subscribes/check` - Check subscription status
+
+### Watch History
+- `POST /api/watch-history` - Add to watch history
+- `GET /api/watch-history/user/:userId` - Get user watch history
+- `GET /api/watch-history/user/:userId/continue-watching` - Get continue watching
+- `GET /api/watch-history/user/:userId/statistics` - Get watch statistics
+- `POST /api/watch-history/user/:userId/remove` - Remove from history
+
+### Video Rooms (Real-time Watch Party)
+- `POST /api/rooms/create` - Create a watch room
+- `POST /api/rooms/join` - Join a room
+- `GET /api/rooms/:roomCode` - Get room details
+- `POST /api/rooms/close` - Close a room
+- `GET /api/rooms/:roomId/messages` - Get room messages
+
+### Views
+- `POST /api/views/:id` - Count view
+- `GET /api/views/:id/stats` - Get view statistics
+- `POST /api/views/sync` - Sync view counts
+
+### Health Check
+- `GET /health` - Server health status
+
+## 🔌 WebSocket Events (Socket.IO)
+
+### Video Rooms Namespace: `/video-rooms`
+
+**Client → Server Events:**
+- `join-room` - Join a video room
+- `send-message` - Send chat message
+- `share-timestamp` - Share video timestamp
+- `video-control` - Control video playback (play, pause, seek)
+- `disconnect` - Leave room
+
+**Server → Client Events:**
+- `user-joined` - New user joined
+- `user-left` - User left room
+- `new-message` - New chat message
+- `timestamp-shared` - Timestamp shared
+- `video-control-broadcast` - Video control update
+- `participants-update` - Participants list updated
+
+### Main Namespace (View Tracking)
+- `joinVideo` - Join video view tracking
+- `viewVideo` - Track video view with deduplication
+
+## 🗄️ Database Schema
+
+### Key Models (Prisma)
+
+**User**
+- Authentication and profile information
+- Subscriber tracking
+- Relationships with videos, comments, likes
+
+**Video**
+- Video metadata (title, description, category, tags)
+- HLS streaming URLs
+- View count, likes, duration
+- AI-generated content analysis
+
+**shortsVideo**
+- Short-form video content
+- Similar structure to regular videos
+
+**Comment**
+- Nested comment system
+- Parent-child relationships for replies
+
+**Like**
+- Video likes tracking
+- Composite unique constraint (userId + videoId)
+
+**subscribers**
+- User subscription relationships
+
+**VideoRoom**
+- Watch party rooms
+- Real-time synchronization
+
+**WatchHistory**
+- User watch tracking
+- Progress tracking
+
+**VideoView**
+- Deduplicated view counting
+- Fingerprint-based tracking
+
+## ⚡ Performance Optimization
+
+### Caching Strategy
+- **Video Lists**: 15 minutes TTL
+- **Comments**: 5 minutes TTL
+- **User Data**: 15 minutes TTL
+- **View Counts**: 1 minute TTL (frequent updates)
+- **Trending Content**: 5 minutes TTL
+
+### View Counting System
+- **Deduplication**: IP + User Agent + User ID fingerprinting
+- **Cooldown**: 1 hour between duplicate views
+- **Batch Processing**: Views aggregated every 30 seconds
+- **Redis-based**: High-performance view tracking
+
+### Video Processing
+- **Multi-quality HLS**: 360p, 480p, 720p, 1080p
+- **Adaptive Bitrate Streaming**: Automatic quality switching
+- **Cloud Storage**: S3 for scalable storage
+- **Frame Extraction**: For thumbnails and AI analysis
+
+## 🤖 AI Features
+
+### Video Analysis (Google Gemini)
+- Automatic content categorization
+- Video topic detection
+- Highlight timestamps
+- Content summarization
+- Tag suggestions
+
+## 🔒 Security
+
+- **Helmet.js**: HTTP header security
+- **CORS**: Configured cross-origin requests
+- **Input Validation**: Express-validator middleware
+- **File Upload Limits**: 500MB max file size
+- **SQL Injection Protection**: Prisma ORM parameterized queries
+- **Environment Variables**: Sensitive data protection
+
+
+## 🛠️ Development
+
+### Scripts
+```bash
+npm run dev       # Start development server with nodemon
+npm start         # Start production server
+npm run build     # Generate Prisma Client
+npm test          # Run tests (to be implemented)
 ```
+
+### Database Migrations
+```bash
+# Create migration
+npx prisma migrate dev --name migration_name
+
+# Apply migrations
+npx prisma migrate deploy
+
+# Reset database (development only)
+npx prisma migrate reset
+```
+
+## 🚢 Deployment
+
+### Vercel Deployment
+The project includes `vercel.json` for serverless deployment.
+
+### Docker Deployment
+```bash
+# Build image
+docker build -t synx-backend .
+
+# Run container
+docker run -p 5000:5000 --env-file .env synx-backend
+
+# Or use docker-compose
+docker-compose up -d
+```
+
+## 📝 Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `PORT` | Server port | No (default: 5000) |
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `REDIS_HOST` | Redis host | Yes |
+| `REDIS_PORT` | Redis port | Yes |
+| `REDIS_PASSWORD` | Redis password | Yes |
+| `AWS_ACCESS_KEY_ID` | AWS access key | Yes |
+| `AWS_SECRET_ACCESS_KEY` | AWS secret key | Yes |
+| `AWS_REGION` | AWS region | Yes |
+| `S3_BUCKET_NAME` | S3 bucket name | Yes |
+| `GEMINI_API_KEY` | Google Gemini API key | Yes |
 
 ## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
@@ -370,18 +397,21 @@ docker-compose up -d
 
 ## 📄 License
 
-ISC License
+This project is licensed under the ISC License.
 
-## 👨‍💻 Author
+## 👤 Author
 
 **Sumit Gohil**
 - GitHub: [@SumitGohil17](https://github.com/SumitGohil17)
 
+## 🐛 Issues
+
+Report bugs or request features at: https://github.com/SumitGohil17/synx-backend/issues
+
 ## 🙏 Acknowledgments
 
-- Express.js team
-- MongoDB team
-- Socket.io team
-- FFmpeg community
-
----
+- Express.js for the robust web framework
+- Prisma for the excellent ORM
+- Socket.IO for real-time capabilities
+- FFmpeg for video processing
+- Google Gemini AI for intelligent video analysis
